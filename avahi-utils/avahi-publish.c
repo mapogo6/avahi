@@ -45,7 +45,8 @@ typedef enum {
     COMMAND_HELP,
     COMMAND_VERSION,
     COMMAND_PUBLISH_SERVICE,
-    COMMAND_PUBLISH_ADDRESS
+    COMMAND_PUBLISH_ADDRESS,
+    COMMAND_PUBLISH_MAILBOX,
 } Command;
 
 typedef struct Config {
@@ -124,7 +125,12 @@ static int register_stuff(Config *config) {
             fprintf(stderr, _("Failed to add address: %s\n"), avahi_strerror(avahi_client_errno(client)));
             return -1;
         }
+    } else if (config->command == COMMAND_PUBLISH_MAILBOX) {
 
+        if (avahi_entry_group_add_mailbox(entry_group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, config->no_reverse ? AVAHI_PUBLISH_NO_REVERSE : 0, config->name, config->port, config->domain) < 0) {
+            fprintf(stderr, _("Failed to add address: %s\n"), avahi_strerror(avahi_client_errno(client)));
+            return -1;
+        }
     } else {
         AvahiStringList *i;
 
@@ -241,6 +247,7 @@ static int parse_command_line(Config *c, const char *argv0, int argc, char *argv
         { "version",        no_argument,       NULL, 'V' },
         { "service",        no_argument,       NULL, 's' },
         { "address",        no_argument,       NULL, 'a' },
+        { "mailbox",        no_argument,       NULL, 'm' },
         { "verbose",        no_argument,       NULL, 'v' },
         { "domain",         required_argument, NULL, 'd' },
         { "host",           required_argument, NULL, 'H' },
@@ -252,13 +259,13 @@ static int parse_command_line(Config *c, const char *argv0, int argc, char *argv
 
     assert(c);
 
-    c->command = strstr(argv0, "address") ? COMMAND_PUBLISH_ADDRESS : (strstr(argv0, "service") ? COMMAND_PUBLISH_SERVICE : COMMAND_UNSPEC);
+    c->command = strstr(argv0, "address") ? COMMAND_PUBLISH_ADDRESS : (strstr(argv0, "service") ? COMMAND_PUBLISH_SERVICE : (strstr(argv0, "mailbox") ? COMMAND_PUBLISH_MAILBOX :  COMMAND_UNSPEC));
     c->verbose = c->no_fail = c->no_reverse = 0;
     c->host = c->name = c->domain = c->stype = NULL;
     c->port = 0;
     c->txt = c->subtypes = NULL;
 
-    while ((o = getopt_long(argc, argv, "hVsavRd:H:f", long_options, NULL)) >= 0) {
+    while ((o = getopt_long(argc, argv, "hVsamvRd:H:f", long_options, NULL)) >= 0) {
 
         switch(o) {
             case 'h':
@@ -272,6 +279,9 @@ static int parse_command_line(Config *c, const char *argv0, int argc, char *argv
                 break;
             case 'a':
                 c->command = COMMAND_PUBLISH_ADDRESS;
+                break;
+            case 'm':
+                c->command = COMMAND_PUBLISH_MAILBOX;
                 break;
             case 'v':
                 c->verbose = 1;
@@ -307,7 +317,31 @@ static int parse_command_line(Config *c, const char *argv0, int argc, char *argv
         avahi_free(c->name);
         c->name = avahi_strdup(argv[optind]);
         avahi_address_parse(argv[optind+1], AVAHI_PROTO_UNSPEC, &c->address);
+    } else if (c->command == COMMAND_PUBLISH_MAILBOX) {
 
+        char *e;
+        long int p;
+
+        if (optind+3 != argc) {
+            fprintf(stderr, _("Bad number of arguments\n"));
+            return -1;
+        }
+
+        avahi_free(c->name);
+        c->name = avahi_strdup(argv[optind]);
+
+        errno = 0;
+        p = strtol(argv[optind+1], &e, 0);
+
+        if (errno != 0 || p < 0) {
+            fprintf(stderr, _("Failed to parse priority: %s\n"), argv[optind+1]);
+            return -1;
+        }
+
+        c->port = p;
+
+        avahi_free(c->domain);
+        c->domain = avahi_strdup(argv[optind+2]);
     } else if (c->command == COMMAND_PUBLISH_SERVICE) {
 
         char *e;
@@ -373,6 +407,7 @@ int main(int argc, char *argv[]) {
 
         case COMMAND_PUBLISH_SERVICE:
         case COMMAND_PUBLISH_ADDRESS:
+        case COMMAND_PUBLISH_MAILBOX:
 
             if (!(simple_poll = avahi_simple_poll_new())) {
                 fprintf(stderr, _("Failed to create simple poll object.\n"));

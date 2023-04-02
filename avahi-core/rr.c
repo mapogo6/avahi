@@ -173,6 +173,10 @@ void avahi_record_unref(AvahiRecord *r) {
             case AVAHI_DNS_TYPE_AAAA:
                 break;
 
+            case AVAHI_DNS_TYPE_MX:
+                avahi_free(r->data.mx.exchange);
+                break;
+
             default:
                 avahi_free(r->data.generic.data);
         }
@@ -218,6 +222,8 @@ const char *avahi_dns_type_to_string(uint16_t type) {
             return "SOA";
         case AVAHI_DNS_TYPE_NS:
             return "NS";
+        case AVAHI_DNS_TYPE_MX:
+            return "MX";
         default:
             return NULL;
     }
@@ -285,6 +291,11 @@ char *avahi_record_to_string(const AvahiRecord *r) {
                      r->data.srv.port,
                      r->data.srv.name);
 
+            break;
+
+        case AVAHI_DNS_TYPE_MX:
+
+            snprintf(t = buf, sizeof(buf), "\"%u\" \"%s\"", r->data.mx.priority, r->data.mx.exchange);
             break;
 
         default: {
@@ -395,6 +406,10 @@ static int rdata_equal(const AvahiRecord *a, const AvahiRecord *b) {
         case AVAHI_DNS_TYPE_AAAA:
             return memcmp(&a->data.aaaa.address, &b->data.aaaa.address, sizeof(AvahiIPv6Address)) == 0;
 
+        case AVAHI_DNS_TYPE_MX:
+            return a->data.mx.priority == b->data.mx.priority &&
+                   avahi_domain_equal(a->data.mx.exchange, b->data.mx.exchange);
+
         default:
             return a->data.generic.size == b->data.generic.size &&
                 (a->data.generic.size == 0 || memcmp(a->data.generic.data, b->data.generic.data, a->data.generic.size) == 0);
@@ -465,6 +480,11 @@ AvahiRecord *avahi_record_copy(AvahiRecord *r) {
             copy->data.aaaa.address = r->data.aaaa.address;
             break;
 
+        case AVAHI_DNS_TYPE_MX:
+            copy->data.mx.priority = r->data.mx.priority;
+            copy->data.mx.exchange = avahi_strdup(r->data.mx.exchange);
+            break;
+
         default:
             if (!(copy->data.generic.data = avahi_memdup(r->data.generic.data, r->data.generic.size)))
                 goto fail;
@@ -522,6 +542,10 @@ size_t avahi_record_get_estimate_size(AvahiRecord *r) {
 
         case AVAHI_DNS_TYPE_AAAA:
             n += sizeof(AvahiIPv6Address);
+            break;
+
+        case AVAHI_DNS_TYPE_MX:
+            n += sizeof(uint16_t) + strlen(r->data.mx.exchange) + 1;
             break;
 
         default:

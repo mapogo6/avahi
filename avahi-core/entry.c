@@ -456,7 +456,7 @@ int avahi_server_add_address(
                                               AVAHI_PUBLISH_USE_MULTICAST), AVAHI_ERR_INVALID_FLAGS);
     AVAHI_CHECK_VALIDITY(s, !name || avahi_is_valid_fqdn(name), AVAHI_ERR_INVALID_HOST_NAME);
 
-    /* Prepare the host naem */
+    /* Prepare the host name */
 
     if (!name)
         name = s->host_name_fqdn;
@@ -508,6 +508,76 @@ int avahi_server_add_address(
             ret = avahi_server_errno(s);
             goto finish;
         }
+    }
+
+finish:
+
+    if (ret != AVAHI_OK && !(flags & AVAHI_PUBLISH_UPDATE)) {
+        if (entry)
+            avahi_entry_free(s, entry);
+        if (reverse)
+            avahi_entry_free(s, reverse);
+    }
+
+    return ret;
+}
+
+int avahi_server_add_mailbox(
+    AvahiServer *s,
+    AvahiSEntryGroup *g,
+    AvahiIfIndex interface,
+    AvahiProtocol protocol,
+    AvahiPublishFlags flags,
+    const char *name,
+    uint16_t priority,
+    const char *exchange) {
+
+    char n[AVAHI_DOMAIN_NAME_MAX];
+    int ret = AVAHI_OK;
+    AvahiEntry *entry = NULL, *reverse = NULL;
+    AvahiRecord  *r;
+
+    assert(s);
+
+    AVAHI_CHECK_VALIDITY(s, AVAHI_IF_VALID(interface), AVAHI_ERR_INVALID_INTERFACE);
+    AVAHI_CHECK_VALIDITY(s, AVAHI_PROTO_VALID(protocol), AVAHI_ERR_INVALID_PROTOCOL);
+    AVAHI_CHECK_VALIDITY(s, AVAHI_FLAGS_VALID(flags,
+                                              AVAHI_PUBLISH_NO_REVERSE|
+                                              AVAHI_PUBLISH_NO_ANNOUNCE|
+                                              AVAHI_PUBLISH_NO_PROBE|
+                                              AVAHI_PUBLISH_UPDATE|
+                                              AVAHI_PUBLISH_USE_WIDE_AREA|
+                                              AVAHI_PUBLISH_USE_MULTICAST), AVAHI_ERR_INVALID_FLAGS);
+    AVAHI_CHECK_VALIDITY(s, !name || avahi_is_valid_fqdn(name), AVAHI_ERR_INVALID_HOST_NAME);
+
+    /* Prepare the host name */
+
+    if (!name)
+        name = s->host_name_fqdn;
+    else {
+        AVAHI_ASSERT_TRUE(avahi_normalize_name(name, n, sizeof(n)));
+        name = n;
+    }
+
+    transport_flags_from_domain(s, &flags, name);
+    AVAHI_CHECK_VALIDITY(s, flags & AVAHI_PUBLISH_USE_MULTICAST, AVAHI_ERR_NOT_SUPPORTED);
+
+    /* Create the MX record */
+
+    if (!(r = avahi_record_new_full(name, AVAHI_DNS_CLASS_IN, AVAHI_DNS_TYPE_MX, AVAHI_DEFAULT_TTL))) {
+        ret = avahi_server_set_errno(s, AVAHI_ERR_NO_MEMORY);
+        goto finish;
+    }
+
+    r->data.mx.priority = priority;
+    r->data.mx.exchange = avahi_strdup(exchange);
+
+    entry = server_add_internal(s, g, interface, protocol, (flags & ~ AVAHI_PUBLISH_NO_REVERSE) | AVAHI_PUBLISH_UNIQUE | AVAHI_PUBLISH_ALLOW_MULTIPLE, r);
+    avahi_record_unref(r);
+
+    if (!entry) {
+        ret = avahi_server_errno(s);
+        goto finish;
     }
 
 finish:

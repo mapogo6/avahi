@@ -103,6 +103,11 @@ typedef struct AvahiRecord {
             AvahiIPv6Address address;
         } aaaa; /**< Data for AAAA records */
 
+        struct {
+            uint16_t priority;
+            char* exchange;
+        } mx; /**< Data for MX records */
+
     } data; /**< Record data */
 
 } AvahiRecord;

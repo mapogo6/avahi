@@ -308,6 +308,35 @@ DBusHandlerResult avahi_dbus_msg_entry_group_impl(DBusConnection *c, DBusMessage
             i->n_entries ++;
 
         return avahi_dbus_respond_ok(c, m);
+    } else if (dbus_message_is_method_call(m, AVAHI_DBUS_INTERFACE_ENTRY_GROUP, "AddMailbox")) {
+        int32_t interface, protocol;
+        uint32_t flags;
+        char *name, *exchange;
+        uint16_t priority;
+
+        if (!dbus_message_get_args(
+                m, &error,
+                DBUS_TYPE_INT32, &interface,
+                DBUS_TYPE_INT32, &protocol,
+                DBUS_TYPE_UINT32, &flags,
+                DBUS_TYPE_STRING, &name,
+		DBUS_TYPE_UINT16, &priority,
+                DBUS_TYPE_STRING, &exchange,
+                DBUS_TYPE_INVALID) || !name || !exchange) {
+            avahi_log_warn("Error parsing EntryGroup::AddAddress message");
+            goto fail;
+        }
+
+        if (!(flags & AVAHI_PUBLISH_UPDATE) && i->n_entries >= server->n_entries_per_entry_group_max)
+            return avahi_dbus_respond_error(c, m, AVAHI_ERR_TOO_MANY_ENTRIES, NULL);
+
+        if (avahi_server_add_mailbox(avahi_server, i->entry_group, (AvahiIfIndex) interface, (AvahiProtocol) protocol, (AvahiPublishFlags) flags, name, priority, exchange) < 0)
+            return avahi_dbus_respond_error(c, m, avahi_server_errno(avahi_server), NULL);
+
+        if (!(flags & AVAHI_PUBLISH_UPDATE))
+            i->n_entries ++;
+
+        return avahi_dbus_respond_ok(c, m);
     } else if (dbus_message_is_method_call(m, AVAHI_DBUS_INTERFACE_ENTRY_GROUP, "AddRecord")) {
         int32_t interface, protocol;
         uint32_t flags, ttl, size;

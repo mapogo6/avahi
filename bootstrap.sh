@@ -56,6 +56,9 @@ case "$USER" in
     sebest)
     FLAGS="$FLAGS --disable-monodoc --enable-dbus=no --enable-mono=no --enable-qt4=no --sysconfdir=/etc --localstatedir=/var --prefix=/usr  --disable-manpages --disable-xmltoman"
     ;;
+    david)
+    FLAGS="$FLAGS --disable-monodoc --enable-dbus=yes --disable-python --disable-mono --disable-qt4 --disable-qt5 --disable-gtk --disable-gtk3 --sysconfdir=/etc --localstatedir=/var --prefix=/usr/local  --disable-manpages --disable-xmltoman"
+    ;;
 esac
 
 CFLAGS="$CFLAGS -g -O0" exec ./autogen.sh $FLAGS "$@"

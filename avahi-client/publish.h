@@ -152,6 +152,18 @@ int avahi_entry_group_add_address(
     const AvahiAddress *a /**< The address this host name shall map to */);
 /** \endcond */
 
+/** \cond fulldocs */
+/** Add a host/address pair */
+int avahi_entry_group_add_mailbox(
+    AvahiEntryGroup *group,
+    AvahiIfIndex interface,
+    AvahiProtocol protocol,
+    AvahiPublishFlags flags,
+    const char *name /**< The FQDN of the mxilbox domain */,
+    uint16_t priority /**< The priority of this MX record*/,
+    const char *exchange /**< The FDQN of the new hostname to register */);
+/** \endcond */
+
 /** Add an arbitrary record. I hope you know what you do. */
 int avahi_entry_group_add_record(
     AvahiEntryGroup *group,

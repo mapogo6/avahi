@@ -596,6 +596,18 @@ static int parse_rdata(AvahiDnsPacket *p, AvahiRecord *r, uint16_t rdlength) {
 
             break;
 
+        case AVAHI_DNS_TYPE_MX:
+
+/*             avahi_log_debug("aaaa"); */
+
+            if (avahi_dns_packet_consume_uint16(p, &r->data.mx.priority) < 0 ||
+                avahi_dns_packet_consume_name(p, buf, sizeof(buf)) < 0)
+                return -1;
+
+            r->data.mx.exchange = avahi_strdup(buf);
+
+            break;
+
         default:
 
 /*             avahi_log_debug("generic"); */
@@ -764,6 +776,14 @@ static int append_rdata(AvahiDnsPacket *p, AvahiRecord *r) {
         case AVAHI_DNS_TYPE_AAAA:
 
             if (!avahi_dns_packet_append_bytes(p, &r->data.aaaa.address, sizeof(r->data.aaaa.address)))
+                return -1;
+
+            break;
+
+        case AVAHI_DNS_TYPE_MX:
+
+            if (!avahi_dns_packet_append_uint16(p, r->data.mx.priority) ||
+                !avahi_dns_packet_append_string(p, r->data.mx.exchange))
                 return -1;
 
             break;
