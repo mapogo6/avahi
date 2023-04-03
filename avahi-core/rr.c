@@ -662,6 +662,10 @@ int avahi_record_lexicographical_compare(AvahiRecord *a, AvahiRecord *b) {
         case AVAHI_DNS_TYPE_AAAA:
             return memcmp(&a->data.aaaa.address, &b->data.aaaa.address, sizeof(AvahiIPv6Address));
 
+        case AVAHI_DNS_TYPE_MX:
+            return a->data.mx.priority == b->data.mx.priority &&
+                   avahi_binary_domain_cmp(a->data.mx.exchange, b->data.mx.exchange);
+
         default:
             return lexicographical_memcmp(a->data.generic.data, a->data.generic.size,
                                           b->data.generic.data, b->data.generic.size);

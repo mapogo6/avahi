@@ -783,7 +783,7 @@ static int append_rdata(AvahiDnsPacket *p, AvahiRecord *r) {
         case AVAHI_DNS_TYPE_MX:
 
             if (!avahi_dns_packet_append_uint16(p, r->data.mx.priority) ||
-                !avahi_dns_packet_append_string(p, r->data.mx.exchange))
+                !avahi_dns_packet_append_name(p, r->data.mx.exchange))
                 return -1;
 
             break;
